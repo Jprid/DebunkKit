@@ -6,4 +6,4 @@ This lead me to sobel edge detection and salt and pepper noise distrubtions. Sob
 
 It allows you to compare the results side by side with the original image. More to come. As it stands today:
 
-(.\Demo.png)
+[Example](.\Demo.png)
