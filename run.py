@@ -11,7 +11,7 @@ from PyQt5.QtGui import QImage, QPixmap
 SIZE = 800
 
 
-def apply_salt_and_pepper(image: object, noise_density: float) -> np.ndarray:
+def apply_salt_and_pepper(image: np.ndarray, noise_density: float) -> np.ndarray:
     output = np.copy(image)
     # Generate salt noise
     salt = np.random.random(image.shape) < (noise_density / 2)
@@ -22,7 +22,7 @@ def apply_salt_and_pepper(image: object, noise_density: float) -> np.ndarray:
     return output
 
 
-def sobel_edge_detection(image) -> np.ndarray:
+def sobel_edge_detection(image: np.ndarray) -> np.ndarray:
     # Convert to grayscale if needed
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -66,6 +66,7 @@ class ImageProcessor(QThread):
 class ImageProcessingApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.noise_slider = None
         self.noise_label = None
         self.progress_bar = None
         self.open_button = None
@@ -76,10 +77,10 @@ class ImageProcessingApp(QMainWindow):
         self.original_display = None
         self.noisy_display = None
         self.processor = None
-        self.initUI()
+        self.init_ui()
         self.current_image = None
 
-    def initUI(self):
+    def init_ui(self) -> None:
         self.setWindowTitle('Image Processing Demo')
         self.setGeometry(100, 100, 1200, 600)
 
@@ -186,7 +187,7 @@ class ImageProcessingApp(QMainWindow):
         self.processor.finished.connect(self.update_processed_images)
         self.processor.start()
 
-    def update_processed_images(self, noisy_image, edge_image) -> None:
+    def update_processed_images(self, noisy_image: np.ndarray, edge_image: np.ndarray) -> None:
         self.display_image(noisy_image, self.noisy_display)
         self.display_image(edge_image, self.edge_display)
 
@@ -194,7 +195,7 @@ class ImageProcessingApp(QMainWindow):
         self.open_button.setEnabled(True)
         self.noise_slider.setEnabled(True)
 
-    def display_image(self, image: Image, label) -> None:
+    def display_image(self, image: Image, label: QLabel) -> None:
         # Convert numpy array to QPixmap and display
         height, width = image.shape[:2]
         if len(image.shape) == 3:
