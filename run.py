@@ -156,7 +156,7 @@ class ImageProcessingApp(QMainWindow):
 
     def open_image(self) -> None:
         file_name, _ = QFileDialog.getOpenFileName(self, "Open Image", "",
-                                                   "Image Files (*.png *.jpg *.jpeg *.bmp)")
+                                                   "Image Files (*.png *.jpg *.jpeg *.bmp *.webp)")
         if file_name:
             try:
                 # Load image using PIL and convert to numpy array
