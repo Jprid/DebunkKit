@@ -77,10 +77,11 @@ class ImageProcessingApp(QMainWindow):
         self.original_display = None
         self.noisy_display = None
         self.processor = None
-        self.init_ui()
+        self.initUI()
         self.current_image = None
 
-    def init_ui(self) -> None:
+
+    def initUI(self) -> object:
         self.setWindowTitle('Image Processing Demo')
         self.setGeometry(100, 100, 1200, 600)
 
