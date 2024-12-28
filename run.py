@@ -1,10 +1,11 @@
 import sys
 import numpy as np
 from PIL import Image
+from PIL.ExifTags import TAGS
 import cv2
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel,
                              QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog,
-                             QSlider, QProgressBar)
+                             QSlider, QProgressBar, QTextEdit)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap
 
@@ -41,8 +42,10 @@ def sobel_edge_detection(image: np.ndarray) -> np.ndarray:
     return magnitude
 
 
+
 class ImageProcessor(QThread):
     progress = pyqtSignal(int)
+    results = pyqtSignal(str)
     finished = pyqtSignal(np.ndarray, np.ndarray)
 
     def __init__(self, image, noise_level):
@@ -50,17 +53,61 @@ class ImageProcessor(QThread):
         self.image = image
         self.noise_level = noise_level
 
+
+
     def run(self):
         # Apply noise
         self.progress.emit(33)
-        noisy_image = apply_salt_and_pepper(self.image, self.noise_level)
+        # noisy_image = apply_salt_and_pepper(self.image, self.noise_level)
+        image_array = np.array(self.image)
 
+        # Calculate salt and pepper noise
+        # Salt is considered as pixels with value 255, pepper as 0 for an 8-bit image
+        salt_count = np.sum(image_array == 255)
+        pepper_count = np.sum(image_array == 0)
+
+        # Total number of pixels
+        total_pixels = image_array.size
+
+        # Calculate proportions
+        salt_proportion = salt_count / total_pixels
+        pepper_proportion = pepper_count / total_pixels
+
+        # Print the results
+        self.results.emit(f"Assuming that the pixel values of 'white noise' and 'black noise' are 0 and 255 respectively")
+        self.results.emit(f"Salt (white noise) proportion: {salt_proportion:.6f}")
+        self.results.emit(f"Pepper (black noise) proportion: {pepper_proportion:.6f}")
         # Edge detection
         self.progress.emit(66)
         edge_image = sobel_edge_detection(self.image)
+        if hasattr(self.image, '_getexif'):
+            exif_data = self.image._getexif()
+            if exif_data is not None:
+                exif = {TAGS.get(tag, tag): value for tag, value in exif_data.items() if tag in TAGS}
+
+                # Extract camera-specific metadata
+                camera_info = {
+                    "Make": exif.get('Make'),
+                    "Model": exif.get('Model'),
+                    "FocalLength": exif.get('FocalLength'),
+                    "ExposureTime": exif.get('ExposureTime'),
+                    "FNumber": exif.get('FNumber'),
+                    "ISOSpeedRatings": exif.get('ISOSpeedRatings'),
+                    "DateTime": exif.get('DateTime')
+                }
+
+                # Print or return the camera info
+                for key, value in camera_info.items():
+                    if value is not None:
+                        if isinstance(value,
+                                      tuple):  # For values like FocalLength that come as tuples for rational numbers
+                            value = f"{value[0]}/{value[1]}"  # Convert to a more readable format
+                        self.results.emit(f"{key}: {value}")
+            else:
+                self.results.emit("No EXIF data found in the image.")
 
         self.progress.emit(100)
-        self.finished.emit(noisy_image, edge_image)
+        self.finished.emit(self.image, edge_image)
 
 
 class ImageProcessingApp(QMainWindow):
@@ -127,6 +174,18 @@ class ImageProcessingApp(QMainWindow):
 
         layout.addLayout(image_layout)
 
+        # Output
+        output_layout = QVBoxLayout()
+        self.result_label = QLabel('Result')
+        self.result_display =  QTextEdit()
+        self.result_display.setFixedSize(1200, 800)
+        self.result_display.setReadOnly(True)
+        output_layout.addWidget(self.result_label)
+        output_layout.addWidget(self.result_display)
+
+        layout.addLayout(output_layout)
+
+
         # Controls
         controls_layout = QHBoxLayout()
 
@@ -142,6 +201,7 @@ class ImageProcessingApp(QMainWindow):
         self.noise_slider.setValue(5)
         self.noise_slider.valueChanged.connect(self.noise_level_changed)
         controls_layout.addWidget(self.noise_slider)
+
 
         self.noise_label = QLabel('Noise Level: 5%')
         controls_layout.addWidget(self.noise_label)
@@ -186,8 +246,11 @@ class ImageProcessingApp(QMainWindow):
         self.processor = ImageProcessor(self.current_image, self.noise_slider.value() / 100)
         self.processor.progress.connect(self.progress_bar.setValue)
         self.processor.finished.connect(self.update_processed_images)
+        self.processor.results.connect(self.display_results)
         self.processor.start()
 
+    def display_results(self, result: str) -> None:
+        self.result_display.append(result)
     def update_processed_images(self, noisy_image: np.ndarray, edge_image: np.ndarray) -> None:
         self.display_image(noisy_image, self.noisy_display)
         self.display_image(edge_image, self.edge_display)
